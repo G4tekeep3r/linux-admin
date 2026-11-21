@@ -1,0 +1,6 @@
+__pycache__/
+*.env
+*.sql
+*.sql.gz
+*_ed25519*
+*.key
