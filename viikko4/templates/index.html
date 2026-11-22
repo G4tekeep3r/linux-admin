@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Viikko 4 – Palvelin B (vain luku -replika)</title>
+    <style>
+        body {
+	    max-width: 900px; margin: 40px auto; padding: 0 20px; font-family: sans-serif; line-height: 1.5; background: #1e2530; color: #f0f0f0; }
+            h1, h2 { color: #4da6ff; }
+            a { color: #8cc8ff; }
+            code, pre { background: #2a3342; border-radius: 4px; }
+            code { padding: 1px 5px; }
+            pre { padding: 10px 14px; overflow-x: auto; }
+            table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; }
+            th, td { border: 1px solid #44506a; padding: 5px 9px; text-align: left; vertical-align: top; }
+    </style>
+</head>
+<body>
+
+    <h1>Viikko 4: Palvelin B – vain luku -replika</h1>
+    <p><strong>Tämä sivu on vain luku -replika.</strong> Se lukee laskurin B:n omasta replikoidusta tietokannasta eikä muuta sitä.</p>
+    <p>Laskurin arvo (replikoitu palvelimelta A): <strong>{{ kaynnit }}</strong></p>
+
+    <p><a href="https://github.com/G4tekeep3r/linux-admin/tree/main/viikko4">Viikko 4 lähdekoodi GitHubissa</a></p>
+
+    <h2>B:n luonti</h2>
+    <p>Otin A:sta cPoudassa snapshotin, loin siitä uuden VM:n (<code>backup</code>, sama avainpari ja security group), liitin sille oman floating IP:n ja vaihdoin MariaDB:n <code>server_id</code>:n (A = 1, B = 2). A:n viikon 2 ja 3 sivut jäivät toimimaan ennallaan.</p>
+
+    <h2>Tallennus, käyttäjät ja oikeudet</h2>
+    <table>
+        <tr><th>Mitä</th><th>Missä / oikeudet</th></tr>
+        <tr><td>Sivusto (A)</td><td><code>/var/www/html</code></td></tr>
+        <tr><td>Varmuuskopiot (B)</td><td><code>/srv/backups/website</code>, ei julkinen, 700, omistaja root</td></tr>
+        <tr><td>Tietokanta</td><td><code>/var/lib/mysql</code> molemmilla</td></tr>
+        <tr><td>root (cron, B)</td><td>ajaa varmuuskopion, oma avain <code>/root/.ssh/backup_ed25519</code></td></tr>
+	<tr><td><code>replicator</code> (A)</td><td>vain <code>REPLICATION SLAVE</code>, vain B:n osoitteesta</td></tr>
+	<tr><td><code>viikko2app</code> (A)</td><td>luku ja kirjoitus <code>viikko2</code>-kantaan</td></tr>
+	<tr><td><code>viikko4ro</code> (B)</td><td>vain <code>SELECT</code> taulussa <code>viikko2.laskuri</code></td></tr>
+	<tr><td>Salasanatiedosto (B)</td><td><code>/etc/viikko4.env</code>, 600, root</td></tr>
+    </table>
+
+    <h2>Tunneittainen varmuuskopio</h2>
+    <p>B hakee A:n <code>/var/www/html</code>-hakemiston rsyncillä SSH:n yli kerran tunnissa. Jokainen ajo tallentuu aikaleimattuun kansioon, 24 uusinta säilytetään ja tulos kirjataan lokiin.</p>
+    <pre>0 * * * * /usr/bin/flock -n /run/website-backup.lock /usr/local/sbin/backup-website.sh</pre>
+
+    <h2>Replikointi</h2>
+    <p>A kirjoittaa muutokset binlogiin ja B toistaa ne omaan <code>viikko2</code>-kantaansa (<code>read_only = ON</code>, <code>replicate_do_db = viikko2</code>). Alkudumppi poistettiin molemmilta koneilta käytön jälkeen.</p>
+    <p><strong>Miksi replikointi ei korvaa varmuuskopiota:</strong> virheet kopioituvat B:lle heti (esim. <code>DROP TABLE</code>), eikä replika säilytä vanhoja versioita.</p>
+
+    <h2>Vain luku -sivu</h2>
+    <p>Sovellus tekee vain <code>SELECT</code>-kyselyn, ei <code>UPDATE</code>-, <code>INSERT</code>- eikä <code>commit</code>-kutsua. Tunnuksella <code>viikko4ro</code> on vain <code>SELECT</code>-oikeus, ja B on <code>read_only</code>, joten kirjoitus estyy kahdesti.</p>
+    <pre>kursori.execute("SELECT kaynnit FROM laskuri WHERE id = 1")</pre>
+
+    <h2>Testit</h2>
+    <pre>
+- Molemmat HTTP sivut ovat julkisia
+- Laskurin arvo oli ennen testiä 136. A-sivua päivitettiin viisi kertaa (141), ja B-sivu näytti latauksen jälkeen 141
+- B-sivua ladattiin kolme kertaa, arvo pysyi 141 ja A:n sivua ei ladattu välissä. 
+- Replika tila: Slave_IO_Running: Yes, Slave_SQL_Running: Yes, Seconds_Behind_Master: 0 
+- Varmuuskopio loki: -  2026-11-20T23:00:02+02:00 OK   2026-11-20_2300
+		     -  2026-11-21T00:00:02+02:00 OK   2026-11-21_0000
+- Palautustesti: Tiedosto /var/www/html/index.html palauitettiin varmuuskopiosta /srv/backups/website/latest hakemistoon /tmp/restore-test/.
+  sha256sum alkuperäinen (A): b3a5c94c21dfd8104e5b4f69ba04d6d1ba8fb49920403f5235a89cfac7b80a64
+  sha256sum palautettu (B):   b3a5c94c21dfd8104e5b4f69ba04d6d1ba8fb49920403f5235a89cfac7b80a64
+  Tiedostot olivat identtiset.
+- B:llä rebootin jälkeen (2026-11-22 klo 12:59) testattiin:
+	systemctl is-active nginx mariadb viikko4: active, active, active
+	Slave_IO_Running: Yes, Slave_SQL_Running: Yes, Seconds_Behind_Master: 0
+	Uusi OK-rivi lokissa: 2026-11-22T13:00:02:00 OK   2026-11-22_1300
+- UPDATE tunnuksella viikko4ro: ERROR 1290 ... running with the --read-only option
+    </pre>
+
+<h2>Ratkaistu ongelma</h2>
+<p>[TÄYTÄ omin sanoin]</p>
+
+</body>
+</html></p>
+</body>
+</html>
