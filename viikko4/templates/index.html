@@ -22,6 +22,8 @@
     <p><strong>Tämä sivu on vain luku -replika.</strong> Se lukee laskurin B:n omasta replikoidusta tietokannasta eikä muuta sitä.</p>
     <p>Laskurin arvo (replikoitu palvelimelta A): <strong>{{ kaynnit }}</strong></p>
 
+    <p><a href="http://195.148.21.177/viikko2/">Viikko 2 laskuri</a></p>
+    <p><a href="http://86.50.231.118/viikko4/">Viikko 4 replika</a></p>
     <p><a href="https://github.com/G4tekeep3r/linux-admin/tree/main/viikko4">Viikko 4 lähdekoodi GitHubissa</a></p>
 
     <h2>B:n luonti</h2>
@@ -29,11 +31,11 @@
 
     <h2>Tallennus, käyttäjät ja oikeudet</h2>
     <table>
-        <tr><th>Mitä</th><th>Missä / oikeudet</th></tr>
-        <tr><td>Sivusto (A)</td><td><code>/var/www/html</code></td></tr>
-        <tr><td>Varmuuskopiot (B)</td><td><code>/srv/backups/website</code>, ei julkinen, 700, omistaja root</td></tr>
-        <tr><td>Tietokanta</td><td><code>/var/lib/mysql</code> molemmilla</td></tr>
-        <tr><td>root (cron, B)</td><td>ajaa varmuuskopion, oma avain <code>/root/.ssh/backup_ed25519</code></td></tr>
+	<tr><th>Mitä</th><th>Missä / oikeudet</th></tr>
+	<tr><td>Sivusto (A)</td><td><code>/var/www/html</code></td></tr>
+	<tr><td>Varmuuskopiot (B)</td><td><code>/srv/backups/website</code>, ei julkinen, 700, omistaja root</td></tr>
+	<tr><td>Tietokanta</td><td><code>/var/lib/mysql</code> molemmilla</td></tr>
+	<tr><td>root (cron, B)</td><td>ajaa varmuuskopion, oma avain <code>/root/.ssh/backup_ed25519</code></td></tr>
 	<tr><td><code>replicator</code> (A)</td><td>vain <code>REPLICATION SLAVE</code>, vain B:n osoitteesta</td></tr>
 	<tr><td><code>viikko2app</code> (A)</td><td>luku ja kirjoitus <code>viikko2</code>-kantaan</td></tr>
 	<tr><td><code>viikko4ro</code> (B)</td><td>vain <code>SELECT</code> taulussa <code>viikko2.laskuri</code></td></tr>
@@ -55,11 +57,12 @@
     <h2>Testit</h2>
     <pre>
 - Molemmat HTTP sivut ovat julkisia
-- Laskurin arvo oli ennen testiä 136. A-sivua päivitettiin viisi kertaa (141), ja B-sivu näytti latauksen jälkeen 141
+- Laskurin arvo oli ennen testiä 136. A-sivua päivitettiin viisi kertaa (141), ja B-sivu näytti latauksen jälkeen 141.
 - B-sivua ladattiin kolme kertaa, arvo pysyi 141 ja A:n sivua ei ladattu välissä. 
 - Replika tila: Slave_IO_Running: Yes, Slave_SQL_Running: Yes, Seconds_Behind_Master: 0 
-- Varmuuskopio loki: -  2026-11-20T23:00:02+02:00 OK   2026-11-20_2300
-		     -  2026-11-21T00:00:02+02:00 OK   2026-11-21_0000
+- Varmuuskopio loki:
+	*  2026-11-20T23:00:02+02:00 OK   2026-11-20_2300
+	*  2026-11-21T00:00:02+02:00 OK   2026-11-21_0000
 - Palautustesti: Tiedosto /var/www/html/index.html palauitettiin varmuuskopiosta /srv/backups/website/latest hakemistoon /tmp/restore-test/.
   sha256sum alkuperäinen (A): b3a5c94c21dfd8104e5b4f69ba04d6d1ba8fb49920403f5235a89cfac7b80a64
   sha256sum palautettu (B):   b3a5c94c21dfd8104e5b4f69ba04d6d1ba8fb49920403f5235a89cfac7b80a64
@@ -71,10 +74,13 @@
 - UPDATE tunnuksella viikko4ro: ERROR 1290 ... running with the --read-only option
     </pre>
 
-<h2>Ratkaistu ongelma</h2>
-<p>[TÄYTÄ omin sanoin]</p>
+    <h2>Ratkaistu ongelma / opittu asia</h2>
+    <p>
+      Opin, että <code>rsync -a</code> säilyttää tiedostojen alkuperäiset
+      aikaleimat, joten kansioiden muokkausajan perusteella ei voi päätellä, mikä
+      varmuuskopio on uusin. Siivous poisti aluksi uusimmat versiot, kunnes
+      järjestin kansiot nimen mukaan (<code>sort -r</code>).
+    </p>
 
-</body>
-</html></p>
 </body>
 </html>
