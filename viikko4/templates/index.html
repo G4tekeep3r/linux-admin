@@ -43,7 +43,7 @@
     </table>
 
     <h2>Tunneittainen varmuuskopio</h2>
-    <p>B hakee A:n <code>/var/www/html</code>-hakemiston rsyncillä SSH:n yli kerran tunnissa. Jokainen ajo tallentuu aikaleimattuun kansioon, 24 uusinta säilytetään ja tulos kirjataan lokiin.</p>
+    <p>B hakee A:n <code>/var/www/html</code>-hakemiston rsyncillä SSH:n yli kerran tunnissa. Jokainen ajo tallentuu aikaleimattuun kansioon, 5 uusinta säilytetään ja tulos kirjataan lokiin.</p>
     <pre>0 * * * * /usr/bin/flock -n /run/website-backup.lock /usr/local/sbin/backup-website.sh</pre>
 
     <h2>Replikointi</h2>
@@ -67,7 +67,7 @@
   sha256sum alkuperäinen (A): b3a5c94c21dfd8104e5b4f69ba04d6d1ba8fb49920403f5235a89cfac7b80a64
   sha256sum palautettu (B):   b3a5c94c21dfd8104e5b4f69ba04d6d1ba8fb49920403f5235a89cfac7b80a64
   Tiedostot olivat identtiset.
-- B:llä rebootin jälkeen (2026-11-22 klo 12:59) testattiin:
+- B:llä rebootin jälkeen (2026-11-22 klo 12:56) testattiin:
 	systemctl is-active nginx mariadb viikko4: active, active, active
 	Slave_IO_Running: Yes, Slave_SQL_Running: Yes, Seconds_Behind_Master: 0
 	Uusi OK-rivi lokissa: 2026-11-22T13:00:02:00 OK   2026-11-22_1300
